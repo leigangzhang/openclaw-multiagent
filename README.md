@@ -253,3 +253,5 @@ make reload            # 重启 runner（**改代码后必须**）
 
 - [`taskctl/README.md`](taskctl/README.md) —— 编排器的详细设计与数据契约
 - [`docs/feishu-setup.md`](docs/feishu-setup.md) —— 飞书开发者后台配置步骤
+- [`docs/P4-production-hardening.md`](docs/P4-production-hardening.md) —— P4 生产化加固设计留档（**未实现**，开放给他人使用前再按需实现）
+- [`TODO.md`](TODO.md) —— 已确认但短期内不做的两项
