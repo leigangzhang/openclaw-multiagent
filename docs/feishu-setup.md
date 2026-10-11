@@ -136,7 +136,7 @@ openclaw channels status --probe
 拿到 `App ID` / `App Secret` / `chat_id` 之后，用本仓库的脚本一步落配置：
 
 ```zsh
-cd ~/dsh-playgroud/openclaw-multiagent/config
+cd ~/Workspace/openclaw-multiagent/config
 
 export FEISHU_APP_ID=cli_xxxxxxxx
 export FEISHU_APP_SECRET=xxxxxxxx
@@ -242,7 +242,7 @@ channels: {
 **路线 1（当下可用）**：由 Planner（Claude Code）理解意图后调用编排器：
 
 ```zsh
-~/dsh-playgroud/openclaw-multiagent/orchestrator/orchestrator.sh merge <task> --as human
+~/Workspace/openclaw-multiagent/orchestrator/orchestrator.sh merge <task> --as human
 ```
 
 **路线 2（要做成真正的确定性命令）**：写一个极小的 OpenClaw 插件，
