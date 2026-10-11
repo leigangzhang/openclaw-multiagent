@@ -5,10 +5,24 @@
  * 每个角色的输入都自包含（执行者之间不共享上下文）。
  */
 
-/** 默认角色配置。transport 可按角色切换，便于逐角色降级排障。 */
+/**
+ * 角色配置。
+ *
+ * `pricingKey` 是**计费模型的标识**，用于查 pricing.json —— 它不一定等于
+ * OpenClaw 的模型引用，因为外部 harness 有自己的模型映射：
+ *   - plan  → claude-cli → 本机 Claude Code → 其 settings.json 把它映射到 deepseek-v4-pro[1m]
+ *   - review→ openai/deepseek-flash → Codex harness → 计费落在 deepseek-flash
+ *   - code  → dsh（ACP）→ DSH harness 自选模型，此处按其默认计 deepseek-v4-pro
+ *
+ * 之前 engine 传的是 `agentId`（dsh/codex/claude），与价格表的模型名键永远匹配不上，
+ * 导致成本恒为 0 —— 也就是"机制写了但链路从未通"。
+ *
+ * 若计费模型与实际不符，改这里的 pricingKey 即可，不必动 engine。
+ */
 export const ROLES = {
   plan: {
     agentId: "claude",
+    pricingKey: "deepseek-v4-pro",
     // agent-cli：claude 走 claude-cli 后端（复用本机 Claude Code 登录），已实测可用。
     // 不走 ACP —— ACP 经 openclaw agent 根本到不了（见 transport.mjs 顶部说明）。
     transport: "agent-cli",
@@ -33,6 +47,7 @@ export const ROLES = {
 
   code: {
     agentId: "dsh",
+    pricingKey: "deepseek-v4-pro",
     // acp-poll：DSH 不是可注册的 harness，只能经 ACP 到达。
     // spawn 是异步的，所以由 taskctl 轮询会话库取结果（不经 LLM 转述）。
     transport: "acp-poll",
@@ -62,6 +77,7 @@ export const ROLES = {
 
   review: {
     agentId: "codex",
+    pricingKey: "deepseek-flash",
     // agent-cli：codex 配了模型级 agentRuntime.id="codex"，走原生 Codex app-server harness。
     transport: "agent-cli",
     title: "审查",
@@ -93,6 +109,11 @@ export const ROLES = {
         .join("\n"),
   },
 };
+
+/** 某个角色该用哪个价格键计费。 */
+export function pricingKeyFor(roleName) {
+  return ROLES[roleName]?.pricingKey ?? null;
+}
 
 /** 从审查输出里解析围栏 JSON。解析不出来就是不确定 —— 绝不猜。 */
 export function parseReviewVerdict(text) {

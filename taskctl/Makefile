@@ -36,6 +36,13 @@ eval:
 audit:
 	@$(NODE) bin/audit.mjs
 
+# 端到端：真实停机恢复（会停/启 runner 服务，约 2 分钟）
+e2e-resume:
+	@echo "── E2E: 真实中断恢复 ──"
+	@./test/e2e/resume.sh
+
+e2e: e2e-resume
+
 reap:
 	@$(NODE) bin/reap.mjs
 

@@ -175,6 +175,51 @@ scenario("已完成步骤在重放时被跳过（幂等）", async () => {
   assert.ok(firstRunSteps > 0);
 });
 
+scenario("中断后 resume：不重跑已完成步骤，且能接着跑完", async () => {
+  const { taskId } = store.createTask({ rawText: "x" });
+  const ran = [];
+
+  // 第一次：在 code 步骤"崩溃"（抛异常），模拟 runner 被 kill
+  const crashing = async (_t, { stepName }) => {
+    ran.push(stepName);
+    if (stepName === "code") throw new Error("模拟中断：runner 被杀");
+    return {
+      transport: "stub", exitCode: 0,
+      output: stepName === "review" ? REVIEW_PASS : "ok",
+      usage: null, durationMs: 1,
+    };
+  };
+  let threw = false;
+  try {
+    await runPipeline(taskId, { __dispatch: crashing, __gate: stubGate(0) });
+  } catch (e) {
+    threw = true;
+    assert.match(String(e.message), /模拟中断/);
+  }
+  assert.ok(threw, "中断应当向上抛出，而不是被吞掉");
+  assert.deepEqual(ran, ["plan", "code"], "第一次应已跑完 plan，并停在 code");
+
+  const stMid = store.readStatus(taskId);
+  assert.ok(!["done", "failed", "cancelled"].includes(stMid.phase), `中断后不应是终态，实际 ${stMid.phase}`);
+  const planMetaBefore = fs.statSync(
+    path.join(store.taskDir(taskId), "steps", "plan", "meta.json")
+  ).mtimeMs;
+
+  // 第二次：正常恢复
+  ran.length = 0;
+  const r = await runPipeline(taskId, {
+    __dispatch: stubTransport({ plan: "计划", code: "代码", review: REVIEW_PASS }),
+    __gate: stubGate(0),
+  });
+  assert.equal(r.phase, "done");
+  assert.ok(!ran.includes("plan"), `resume 不该重跑 plan，实际跑了 ${ran.join(",")}`);
+
+  const planMetaAfter = fs.statSync(
+    path.join(store.taskDir(taskId), "steps", "plan", "meta.json")
+  ).mtimeMs;
+  assert.equal(planMetaAfter, planMetaBefore, "已完成步骤的 meta.json 不该被重写（S2 的硬证据）");
+});
+
 // ── 执行 ────────────────────────────────────────────────────
 let pass = 0;
 const failures = [];

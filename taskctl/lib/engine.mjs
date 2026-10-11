@@ -31,7 +31,7 @@ import {
   writeVerdict,
   readVerdict,
 } from "./store.mjs";
-import { ROLES, parseReviewVerdict } from "./roles.mjs";
+import { ROLES, parseReviewVerdict, pricingKeyFor } from "./roles.mjs";
 import { provisionWorkspace, runTestGate, orchestratorAvailable } from "./workspace.mjs";
 import { dispatch } from "./transport.mjs";
 
@@ -102,10 +102,12 @@ export async function runStep(taskId, roleName, opts = {}) {
       timedOut: result.timedOut,
       durationMs: result.durationMs,
       usage: result.usage ?? null,
+      // 用角色的计费键查价格表 —— 不是 agentId（那个永远匹配不上模型名）
       costUsd:
-        result.usage?.costUsd ??
-        computeCostUsd(role.agentId, result.usage?.inputTokens, result.usage?.outputTokens) ??
+        result.usage?.costUsd ||
+        computeCostUsd(pricingKeyFor(roleName), result.usage?.inputTokens, result.usage?.outputTokens) ||
         0,
+      pricingKey: pricingKeyFor(roleName),
       raw: result.raw,
     },
   });
