@@ -1,7 +1,7 @@
 /**
  * OpenClaw 多智能体拓扑 —— **线上配置快照**（自动生成，请勿手工编辑）
  *
- * 生成时间: 2026-10-10T13:33:30.355Z
+ * 生成时间: 2026-10-11T06:10:11.677Z
  * 来源:     /Users/ray/.openclaw/openclaw.json
  * 生成器:   config/refresh-topology.sh
  *
@@ -86,18 +86,25 @@
         },
         "models": [
           {
-            "id": "deepseek-v4-pro",
-            "name": "DeepSeek V4 Pro",
+            "id": "deepseek-flash",
+            "name": "DeepSeek Flash (V4.1-Flash)",
             "input": [
-              "text"
-            ]
+              "text",
+              "image"
+            ],
+            "reasoning": true,
+            "contextWindow": 1048576,
+            "maxTokens": 393216
           },
           {
-            "id": "deepseek-flash",
-            "name": "DeepSeek Flash",
+            "id": "deepseek-v4-pro",
+            "name": "DeepSeek V4 Pro (0813)",
             "input": [
               "text"
-            ]
+            ],
+            "reasoning": true,
+            "contextWindow": 1048576,
+            "maxTokens": 393216
           }
         ]
       }
@@ -113,7 +120,9 @@
       },
       "maxConcurrent": 4,
       "subagents": {
-        "maxConcurrent": 8
+        "maxConcurrent": 2,
+        "maxSpawnDepth": 3,
+        "runTimeoutSeconds": 1800
       }
     },
     "entries": {
@@ -260,12 +269,13 @@
     },
     "exec": {
       "mode": "ask",
-      "strictInlineEval": true
+      "strictInlineEval": true,
+      "timeoutSeconds": 900,
+      "backgroundMs": 240000
     },
     "alsoAllow": [
       "apply_patch",
       "edit",
-      "exec",
       "process",
       "read",
       "write"
