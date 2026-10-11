@@ -36,6 +36,7 @@ const USAGE = `taskctl —— 多 Agent 协作任务编排器
   taskctl submit --message <文本> [--repo <路径>] [--requester <名>] [--peer <id>]
                  [--channel <渠道>] [--gate-cmd <命令>] [--workdir <路径>]
                  [--skip-plan] [--require-evidence]
+                 [--merge-mode none|ai|human] [--merge-push] [--keep-worktree]
                  [--max-steps N] [--max-wall-clock S] [--max-cost USD] [--max-fix N]
   taskctl run    <taskId> [--gate-cmd <命令>] [--workdir <路径>] [--skip-plan]
                           [--require-evidence]
@@ -131,6 +132,9 @@ async function main() {
                 `${process.env.HOME}/.openclaw/workspace-coder`),
           skipPlan: Boolean(flags["skip-plan"]),
           requireEvidence: Boolean(flags["require-evidence"]),
+          mergeMode: flags["merge-mode"] ?? "none",
+          mergePush: Boolean(flags["merge-push"]),
+          keepWorktree: Boolean(flags["keep-worktree"]),
         },
       });
       if (flags.json) process.stdout.write(`${JSON.stringify({ taskId })}\n`);

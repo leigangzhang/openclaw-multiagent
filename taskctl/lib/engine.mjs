@@ -32,7 +32,7 @@ import {
   readVerdict,
 } from "./store.mjs";
 import { ROLES, parseReviewVerdict, pricingKeyFor } from "./roles.mjs";
-import { provisionWorkspace, runTestGate, orchestratorAvailable } from "./workspace.mjs";
+import { provisionWorkspace, runTestGate, orchestratorAvailable, mergeWorkspace, cleanupWorkspace } from "./workspace.mjs";
 import { dispatch } from "./transport.mjs";
 
 function fail(taskId, reason, extra = {}) {
@@ -212,7 +212,8 @@ export async function runPipeline(taskId, opts = {}) {
 
       case "provisioning": {
         const req = readRequest(taskId);
-        const prov = await provisionWorkspace(taskId, req.repo, {
+        const provFn = opts.__provision ?? provisionWorkspace;
+        const prov = await provFn(taskId, req.repo, {
           base: opts.base ?? null,
           agent: req.runOptions?.agent ?? null,
         });
@@ -333,13 +334,50 @@ export async function runPipeline(taskId, opts = {}) {
       }
 
       case "gating": {
-        const st3 = readStatus(taskId);
         const v = readVerdict(taskId) ?? {};
         const mustHaveEvidence = Boolean(opts.requireEvidence);
         const hasEvidence = Array.isArray(v.evidence) && v.evidence.length > 0;
         if (mustHaveEvidence && !hasEvidence) {
           return fail(taskId, "缺少硬证据（要求提供 gateCmd 或测试命令）", { step: "gating" });
         }
+        // mergeMode 默认 none —— 不改变既有行为，合并必须显式开启
+        const mode = opts.mergeMode ?? "none";
+        if (mode === "none") {
+          transition(taskId, "done");
+          break;
+        }
+        if (mode === "human") {
+          // 人工合并：停在待批准，等用户在群里批（或跑 taskctl approve）
+          return transition(taskId, "needs_approval", {
+            pendingApproval: {
+              kind: "merge",
+              as: "human",
+              taskId,
+              worktree: readStatus(taskId).workdir ?? null,
+              prompt: `门控已通过，是否合并回源仓库？回复批准以继续。`,
+            },
+          }) && { taskId, phase: "needs_approval" };
+        }
+        transition(taskId, "merging");
+        break;
+      }
+
+      case "merging": {
+        const repo = readRequest(taskId).repo;
+        const mergeFn = opts.__merge ?? mergeWorkspace;
+        const m = await mergeFn(taskId, {
+          as: "ai",
+          repo,
+          push: Boolean(opts.mergePush),
+          cwd: readStatus(taskId).workdir ?? null,
+        });
+        if (!m.ok) {
+          return fail(taskId, `合并失败（${m.reason}）：${m.raw.slice(-300)}`, { step: "merging" });
+        }
+        const stm = readStatus(taskId);
+        stm.mergedAt = new Date().toISOString();
+        saveStatus(taskId, stm);
+        log(taskId, "merge.done", { });
         transition(taskId, "done");
         break;
       }

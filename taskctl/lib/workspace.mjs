@@ -150,6 +150,37 @@ export async function runTestGate(taskId, { cwd, timeoutSec = 1800, repo = null 
   return { exitCode: r.exitCode, raw: `${r.stdout}\n${r.stderr}`.slice(-4000) };
 }
 
+/**
+ * 合并工作树回源仓库。
+ *
+ * orchestrator.sh merge 是 **fail-closed** 的，会依次拒绝：
+ *   - 没有门控记录（EX_GATE=4）
+ *   - 门控未通过（EX_GATE）
+ *   - 门控的 fingerprint 与当前工作树不符（测试之后又改过）（EX_GATE）
+ *   - 源仓库有未提交改动（EX_PRECOND=3）
+ * 所以它能真正兜住"测完又改"这类绕过。
+ *
+ * 注意：merge 从任务记录里取 repo，但仍需 ORCH_REPO —— orchestrator 顶层前置检查
+ * 在解析命令之前就会执行（这个坑在 provision 时踩过）。
+ */
+export async function mergeWorkspace(taskId, { as = "ai", repo = null, push = false, forceGate = false, cwd = null, timeoutSec = 600 } = {}) {
+  const args = ["merge", orchId(taskId), "--as", as];
+  if (push) args.push("--push");
+  if (forceGate) args.push("--force-gate");
+  const r = await run(args, { cwd, timeoutSec, repo });
+  log(taskId, "workspace.merge", { as, push, exitCode: r.exitCode });
+  return {
+    ok: r.exitCode === 0,
+    exitCode: r.exitCode,
+    // 分层退出码：4=门控未过 / 5=git 冲突 / 3=前置缺失 / 6=锁超时
+    reason:
+      r.exitCode === 0
+        ? null
+        : { 3: "前置缺失", 4: "门控未过", 5: "git 冲突", 6: "锁超时" }[r.exitCode] ?? `未知(${r.exitCode})`,
+    raw: `${r.stdout}\n${r.stderr}`.slice(-3000),
+  };
+}
+
 /** 清理工作树。默认保留，仅在显式要求时调用。 */
 export async function cleanupWorkspace(taskId, { force = false, repo = null } = {}) {
   const args = ["clean", orchId(taskId)];

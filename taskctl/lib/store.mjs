@@ -30,6 +30,7 @@ export const PHASES = [
   "reviewing",
   "fixing",
   "gating",
+  "merging",
   "done",
 ];
 export const TERMINAL = ["done", "failed", "needs_approval", "cancelled"];
@@ -165,6 +166,9 @@ export function createTask({ rawText, requester, channel, peerId, repo, limits =
       workdir: runOptions.workdir ?? null,
       skipPlan: Boolean(runOptions.skipPlan),
       requireEvidence: Boolean(runOptions.requireEvidence),
+      mergeMode: runOptions.mergeMode ?? "none",
+      mergePush: Boolean(runOptions.mergePush),
+      keepWorktree: Boolean(runOptions.keepWorktree),
     },
   });
 

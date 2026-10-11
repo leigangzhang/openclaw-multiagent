@@ -30,12 +30,14 @@ import {
   STATE_ROOT,
   TASKS_DIR,
   listTasks,
+  readRequest,
   readRunOptions,
   readStatus,
   isTerminal,
   log,
 } from "../lib/store.mjs";
 import { runPipeline } from "../lib/engine.mjs";
+import { cleanupWorkspace } from "../lib/workspace.mjs";
 import { buildReport } from "../lib/report.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -142,6 +144,24 @@ async function runOne(status) {
     log(taskId, "runner.claimed", { pid: process.pid });
     const opts = readRunOptions(taskId);
     const r = await runPipeline(taskId, opts);
+
+    // 工作树生命周期。**关键：mergeMode=none 时绝不能清理** ——
+    // 改动还只在工作树里、没有合并回源仓库，清了就永久丢失。
+    const after = readStatus(taskId);
+    const req = readRequest(taskId);
+    const keep = opts.keepWorktree || after.phase !== "done" || opts.mergeMode !== "ai";
+    if (req.repo && !keep) {
+      const c = await cleanupWorkspace(taskId, { repo: req.repo });
+      log(taskId, "workspace.cleaned", { exitCode: c.exitCode });
+    } else if (req.repo) {
+      log(taskId, "workspace.kept", {
+        reason:
+          opts.keepWorktree ? "--keep-worktree"
+          : after.phase !== "done" ? `phase=${after.phase}（保留证据）`
+          : `mergeMode=${opts.mergeMode}（改动未合并，保留）`,
+      });
+    }
+
     const report = buildReport(taskId);
     const d = await deliver(taskId, report);
     return { taskId, phase: r.phase, delivered: d.ok, deliveryReason: d.reason };

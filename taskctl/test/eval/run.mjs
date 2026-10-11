@@ -220,6 +220,46 @@ scenario("中断后 resume：不重跑已完成步骤，且能接着跑完", asy
   assert.equal(planMetaAfter, planMetaBefore, "已完成步骤的 meta.json 不该被重写（S2 的硬证据）");
 });
 
+scenario("mergeMode=none（默认）→ 直接 done，不合并", async () => {
+  const { taskId } = store.createTask({ rawText: "x" });
+  let mergeCalled = false;
+  const r = await runPipeline(taskId, {
+    __dispatch: stubTransport({ plan: "p", code: "c", review: REVIEW_PASS }),
+    __gate: stubGate(0),
+    mergeMode: "none",
+    __merge: async () => { mergeCalled = true; return { ok: true, exitCode: 0 }; },
+  });
+  assert.equal(r.phase, "done");
+  assert.equal(mergeCalled, false, "默认不该触发合并");
+  assert.equal(store.readStatus(taskId).mergedAt, undefined);
+});
+
+scenario("mergeMode=ai → 经过 merging 阶段且记录 mergedAt", async () => {
+  const { taskId } = store.createTask({ rawText: "x", repo: "/tmp/fake-repo" });
+  const r = await runPipeline(taskId, {
+    __dispatch: stubTransport({ plan: "p", code: "c", review: REVIEW_PASS }),
+    __gate: stubGate(0),
+    __provision: async () => ({ ok: true, worktree: "/tmp/fake-wt", exitCode: 0, raw: "" }),
+    mergeMode: "ai",
+    __merge: async () => ({ ok: true, exitCode: 0 }),
+  });
+  assert.equal(r.phase, "done");
+  assert.ok(store.readStatus(taskId).mergedAt, "mergedAt 应被写入（合并确实发生的证据）");
+});
+
+scenario("mergeMode=ai 但合并失败 → failed 且带退出码语义", async () => {
+  const { taskId } = store.createTask({ rawText: "x", repo: "/tmp/fake-repo" });
+  const r = await runPipeline(taskId, {
+    __dispatch: stubTransport({ plan: "p", code: "c", review: REVIEW_PASS }),
+    __gate: stubGate(0),
+    __provision: async () => ({ ok: true, worktree: "/tmp/fake-wt", exitCode: 0, raw: "" }),
+    mergeMode: "ai",
+    __merge: async () => ({ ok: false, exitCode: 4, reason: "门控未过", raw: "gate stale" }),
+  });
+  assert.equal(r.phase, "failed");
+  assert.match(String(r.error), /合并失败.*门控未过/);
+});
+
 // ── 执行 ────────────────────────────────────────────────────
 let pass = 0;
 const failures = [];
