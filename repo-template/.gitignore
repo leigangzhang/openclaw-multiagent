@@ -1,0 +1,13 @@
+# worktree 环境隔离产物 —— 这些不该出现在源仓库的 git status 里，
+# 否则 orchestrator 的"源仓库必须干净"前置检查会永久拒绝合并。
+# （实测踩到：门控通过后 merge 被 __pycache__ 挡住）
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+node_modules/
+.m2_local/
+.agents/
+.openclaw/env-setup.pending
