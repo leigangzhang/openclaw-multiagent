@@ -1,0 +1,303 @@
+/**
+ * OpenClaw 多智能体拓扑 —— **线上配置快照**（自动生成，请勿手工编辑）
+ *
+ * 生成时间: 2026-10-10T13:33:30.355Z
+ * 来源:     /Users/ray/.openclaw/openclaw.json
+ * 生成器:   config/refresh-topology.sh
+ *
+ * 这是现状的**记录**，不是期望状态。要改配置请用 `openclaw config set`，
+ * 改完再跑 refresh-topology.sh 更新本文件。
+ *
+ * 密钥已脱敏为占位符，可安全提交。
+ */
+
+{
+  "acp": {
+    "enabled": true,
+    "backend": "acpx",
+    "dispatch": {
+      "enabled": true
+    },
+    "allowedAgents": [
+      "claude",
+      "codex",
+      "dsh"
+    ],
+    "stream": {
+      "repeatSuppression": true
+    }
+  },
+  "plugins": {
+    "entries": {
+      "acpx": {
+        "enabled": true,
+        "config": {
+          "agents": {
+            "dsh": {
+              "command": "/Users/ray/dsh-playgroud/bin/dsh",
+              "args": [
+                "acp"
+              ]
+            }
+          },
+          "permissionMode": "approve-all",
+          "nonInteractivePermissions": "deny",
+          "pluginToolsMcpBridge": false,
+          "timeoutSeconds": 60
+        }
+      },
+      "feishu": {
+        "enabled": true
+      },
+      "codex": {
+        "enabled": true,
+        "config": {
+          "appServer": {
+            "command": "/opt/homebrew/bin/codex",
+            "homeScope": "user"
+          },
+          "codexDynamicToolsExclude": [
+            "exec",
+            "process",
+            "read",
+            "write",
+            "edit"
+          ]
+        }
+      },
+      "anthropic": {
+        "enabled": true
+      },
+      "openai": {
+        "enabled": true
+      }
+    }
+  },
+  "models": {
+    "providers": {
+      "deepseek": {
+        "baseUrl": "https://api.deepseek.com",
+        "api": "openai-completions",
+        "auth": "api-key",
+        "apiKey": {
+          "source": "env",
+          "provider": "default",
+          "id": "DEEPSEEK_API_KEY"
+        },
+        "models": [
+          {
+            "id": "deepseek-v4-pro",
+            "name": "DeepSeek V4 Pro",
+            "input": [
+              "text"
+            ]
+          },
+          {
+            "id": "deepseek-flash",
+            "name": "DeepSeek Flash",
+            "input": [
+              "text"
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "worktreeRoot": "/Users/ray/.openclaw-worktrees",
+  "worktreeAcceleration": true,
+  "agents": {
+    "ownership": "explicit",
+    "defaults": {
+      "compaction": {
+        "mode": "safeguard"
+      },
+      "maxConcurrent": 4,
+      "subagents": {
+        "maxConcurrent": 8
+      }
+    },
+    "entries": {
+      "main": {
+        "model": "deepseek/deepseek-v4-pro",
+        "subagents": {
+          "allowAgents": [
+            "claude",
+            "dsh",
+            "codex"
+          ]
+        }
+      },
+      "dsh": {
+        "name": "Coder",
+        "workspace": "/Users/ray/.openclaw/workspace-coder",
+        "runtime": {
+          "type": "acp",
+          "acp": {
+            "agent": "dsh",
+            "backend": "acpx",
+            "mode": "persistent"
+          }
+        },
+        "subagents": {
+          "allowAgents": []
+        },
+        "groupChat": {
+          "mentionPatterns": [
+            "@dsh\\b",
+            "@编码\\b"
+          ]
+        }
+      },
+      "claude": {
+        "name": "Planner",
+        "workspace": "/Users/ray/.openclaw/workspace-planner",
+        "model": "claude-cli/claude-sonnet-5",
+        "models": {
+          "claude-cli/claude-sonnet-5": {
+            "agentRuntime": {
+              "id": "claude-cli"
+            }
+          }
+        },
+        "subagents": {
+          "allowAgents": [
+            "dsh",
+            "codex"
+          ],
+          "delegationMode": "prefer"
+        },
+        "groupChat": {
+          "mentionPatterns": [
+            "@claude\\b",
+            "@规划\\b"
+          ]
+        }
+      },
+      "codex": {
+        "name": "Reviewer",
+        "workspace": "/Users/ray/.openclaw/workspace-reviewer",
+        "model": "openai/deepseek-flash",
+        "models": {
+          "openai/deepseek-flash": {
+            "agentRuntime": {
+              "id": "codex"
+            }
+          }
+        },
+        "runtime": {
+          "type": "acp",
+          "acp": {
+            "agent": "codex",
+            "backend": "acpx",
+            "mode": "oneshot"
+          }
+        },
+        "subagents": {
+          "allowAgents": []
+        },
+        "groupChat": {
+          "mentionPatterns": [
+            "@codex\\b",
+            "@审查\\b"
+          ]
+        }
+      },
+      "dispatcher": {
+        "name": "Dispatcher",
+        "workspace": "/Users/ray/.openclaw/workspace-dispatcher",
+        "model": "deepseek/deepseek-v4-pro",
+        "subagents": {
+          "allowAgents": [
+            "claude",
+            "dsh",
+            "codex"
+          ],
+          "delegationMode": "prefer"
+        }
+      }
+    }
+  },
+  "bindings": [
+    {
+      "agentId": "dispatcher",
+      "match": {
+        "channel": "feishu",
+        "peer": {
+          "kind": "group",
+          "id": "__FEISHU_CHAT_ID__"
+        }
+      }
+    },
+    {
+      "agentId": "dispatcher",
+      "match": {
+        "channel": "feishu"
+      }
+    }
+  ],
+  "broadcast": {
+    "strategy": "sequential",
+    "feishu:__FEISHU_CHAT_ID__": {
+      "agents": [
+        "dispatcher"
+      ],
+      "mentionGating": true,
+      "maxRounds": 1,
+      "maxTurns": 2
+    }
+  },
+  "tools": {
+    "agentToAgent": {
+      "enabled": true,
+      "allow": [
+        "claude",
+        "dsh",
+        "codex"
+      ]
+    },
+    "loopDetection": {
+      "enabled": true
+    },
+    "exec": {
+      "mode": "ask",
+      "strictInlineEval": true
+    },
+    "alsoAllow": [
+      "apply_patch",
+      "edit",
+      "exec",
+      "process",
+      "read",
+      "write"
+    ]
+  },
+  "channels": {
+    "defaults": {
+      "botLoopProtection": {
+        "enabled": true,
+        "maxEventsPerWindow": 10,
+        "windowSeconds": 60,
+        "cooldownSeconds": 120
+      }
+    },
+    "feishu": {
+      "enabled": true,
+      "appId": "__FEISHU_APP_ID__",
+      "appSecret": "__FEISHU_APP_SECRET__",
+      "connectionMode": "websocket",
+      "groupPolicy": "allowlist",
+      "groups": {
+        "__FEISHU_CHAT_ID__": {
+          "enabled": true
+        }
+      },
+      "requireMention": true,
+      "allowBots": false,
+      "groupSessionScope": "group",
+      "replyInThread": "disabled",
+      "tools": {
+        "perm": false
+      }
+    }
+  }
+}

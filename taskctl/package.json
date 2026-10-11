@@ -1,0 +1,16 @@
+{
+  "name": "taskctl",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "OpenClaw 多 Agent 协作的任务编排器：确定性控制流 + 可插拔传输 + 可恢复状态",
+  "bin": {
+    "taskctl": "./index.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  }
+}

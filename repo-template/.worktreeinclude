@@ -1,0 +1,24 @@
+# .worktreeinclude —— 把选定的 ignored/untracked 文件带进每个新工作树
+#
+# OpenClaw 契约（docs/concepts/managed-worktrees.md:167-176）：
+#   * 只有「既被 gitignore 忽略、又未跟踪」的文件才eligible，已跟踪文件永远不由这一步复制
+#   * 语法与 .gitignore 相同，一行一个模式，# 开头是注释
+#   * 不会覆盖已存在的目标文件，不跟随符号链接，保留文件权限
+#   * OpenClaw 只记录它真正创建过的路径，之后你改这个文件也不会让它们失去清理保护
+#
+# 用途：让每个工作树都拿到本地才有的配置，避免 agent 因为缺 .env 而跑不起来。
+#
+# ⚠ 不要把密钥放进这里。这份文件会随仓库提交，
+#   而它引用的文件（如 .env.local）虽然被 gitignore 忽略了，
+#   但会被**复制进每一个工作树**，暴露面随工作树数量线性增长。
+#   真需要密钥时，用 .env.example 让 agent 自己补，或走 secrets 注入。
+
+# 本地环境变量（不含真实密钥，或由调用方临时注入）
+.env.local
+.env.development.local
+
+# 测试夹具
+fixtures/generated/**
+
+# 本地工具链配置
+.vscode/settings.local.json
