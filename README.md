@@ -218,6 +218,19 @@ make reap     # 列出僵尸会话（dry-run）
 
 ---
 
+## 真实场景验证（P3）
+
+在 `~/Workspace/openclaw-multiagent-demo`（及 `_scenarios/` 下的独立仓库）上验证：
+
+| 场景 | 仓库 | 结果 |
+|---|---|---|
+| S-A 纯 Python | demo 根（`pyproject.toml` + `tests/`） | ✅ `done`，门控 10 passed，已合并，worktree 已清 |
+| S-B 纯 Node | `_scenarios/node`（`package.json` + `scripts.test`） | ✅ `done`，门控 `pnpm test`，6 passed |
+| S-C polyglot | `_scenarios/polyglot`（Node + Python 并存） | ✅ `done`，但**只跑 Node**（见 TODO #3） |
+| S-D 故意失败 | demo 根 + 一个必失败测试 | ✅ `failed`，**未合并** —— fail-closed 确认生效 |
+
+**P3 的价值**：S-A 第一次跑就暴露了 `.gitignore` 缺失导致合并被 `__pycache__` 永久阻塞（已修 `repo-template/`）。
+
 ## 已知限制与待办
 
 | # | 项 | 说明 |

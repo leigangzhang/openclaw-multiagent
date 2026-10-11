@@ -51,6 +51,45 @@ export const DEFAULT_LIMITS = {
   maxFixRounds: 2,
 };
 
+/**
+ * 分层超时链 —— 必须严格单调递减，否则外层会先杀掉内层。
+ *
+ * 之前的问题：单步 900、门控 1800 都是硬编码，而任务总墙钟也是 1800 ——
+ * 门控可能跑过任务自身的墙钟，而 checkLimits 只在阶段之间检查，中途拦不住。
+ *
+ * 现在全部从 maxWallClockSec 推导：
+ *   task   = maxWallClockSec
+ *   gate   = 0.80 × task
+ *   step   = 0.50 × task（上限 900，避免大墙钟下单个 agent 调用过久无反馈）
+ *   spawn  = min(300, step)
+ *   探测阈值（childWait / zombieStale）固定在 spawn 之内
+ */
+export function deriveTimeouts(limits) {
+  const wall = Number(limits?.maxWallClockSec ?? DEFAULT_LIMITS.maxWallClockSec);
+  const gate = Math.max(30, Math.floor(wall * 0.8));
+  const step = Math.min(900, Math.max(30, Math.floor(wall * 0.5)));
+  // 必须**严格**小于 step（边界：step=300 时 min(300,300)=300 不满足单调）
+  const spawn = Math.max(10, Math.min(300, Math.floor(step * 0.8)));
+  const childWait = Math.min(45, Math.floor(spawn / 4));
+  const zombieStale = Math.min(150, Math.floor(spawn / 2));
+  return { wall, gate, step, spawn, childWait, zombieStale };
+}
+
+/** 校验单调性；返回违规说明数组（空数组 = 合规）。 */
+export function validateTimeoutChain(limits) {
+  const t = deriveTimeouts(limits);
+  const problems = [];
+  const ok = (name, inner, outer) => {
+    if (!(inner < outer)) problems.push(`${name}: ${inner} 不小于外层 ${outer}`);
+  };
+  ok("gate", t.gate, t.wall);
+  ok("step", t.step, t.wall);
+  ok("spawn", t.spawn, t.step);
+  ok("childWait", t.childWait, t.spawn);
+  ok("zombieStale", t.zombieStale, t.spawn);
+  return problems;
+}
+
 /** 可选价格表：${STATE_ROOT}/pricing.json，形如 {"deepseek-v4-pro":{"in":0.28,"out":1.10}}（每百万 token，USD） */
 export function loadPricing() {
   const f = path.join(STATE_ROOT, "pricing.json");

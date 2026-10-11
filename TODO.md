@@ -62,7 +62,27 @@ await recordSubagentTerminalState(signal, () => {
 
 ---
 
-## 3. 其他小项
+## 3. polyglot 仓库只跑一套测试（P3 实测发现）
+
+**现象**：`orchestrator.sh` 的 `detect_test_cmd` 按
+Java → Node → Python → Rust → Go 的顺序**返回第一条命中**，
+所以 polyglot 仓库（同时有 `package.json` 与 `pyproject.toml`）里，
+门控只跑 `pnpm test`，**Python 测试永远不会被执行**。
+
+实测（`~/Workspace/openclaw-multiagent-demo/_scenarios/polyglot`）：
+```
+门控命令: pnpm test          ← Node 胜
+worktree 含 .venv            ← 环境两套都装了，但只有一套进闸门
+```
+
+**风险**：改动 `pylib.py` 导致 Python 测试失败时，门控仍会放行。
+
+**方向**：`detect_test_cmd` 改为返回**命令数组**，门控全部执行、
+任一失败即拒。`orchestrator.sh` 的 gate 文件结构需相应扩展。
+
+---
+
+## 4. 其他小项
 
 - `deepseek-flash` 的图像理解能力已按官方文档声明（`input: ["text","image"]`），但**未实测**
 - 僵尸会话回收（`make reap`）未接入定时任务，需人工 `--force`

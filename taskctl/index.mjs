@@ -22,6 +22,7 @@ import {
   STATE_ROOT,
   createTask,
   listTasks,
+  validateTimeoutChain,
   readStatus,
   transition,
   log,
@@ -110,6 +111,11 @@ async function main() {
       if (flags["max-cost"]) limits.maxCostUsd = Number(flags["max-cost"]);
       if (flags["max-fix"]) limits.maxFixRounds = Number(flags["max-fix"]);
 
+      const problems = validateTimeoutChain(limits);
+      if (problems.length) {
+        process.stderr.write(`超时链不单调，拒绝创建（内层必须小于外层）：\n  ${problems.join("\n  ")}\n`);
+        process.exit(2);
+      }
       const { taskId } = createTask({
         rawText,
         requester: flags.requester ?? null,

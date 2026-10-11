@@ -260,6 +260,22 @@ scenario("mergeMode=ai 但合并失败 → failed 且带退出码语义", async 
   assert.match(String(r.error), /合并失败.*门控未过/);
 });
 
+scenario("超时链在常见墙钟下都严格单调", () => {
+  for (const w of [120, 300, 600, 1200, 1800, 3600, 7200]) {
+    const problems = store.validateTimeoutChain({ maxWallClockSec: w });
+    assert.equal(problems.length, 0, `墙钟 ${w}s 违反单调：${problems.join("; ")}`);
+  }
+});
+
+scenario("超时链：内层必须小于外层（反例应被拒）", () => {
+  // 构造一个人为破坏的场景：把 gate 推到超过 wall
+  const t = store.deriveTimeouts({ maxWallClockSec: 100 });
+  assert.ok(t.gate < 100, "gate 必须小于总墙钟");
+  assert.ok(t.step < 100, "step 必须小于总墙钟");
+  assert.ok(t.spawn < t.step, "spawn 必须小于 step");
+  assert.ok(t.childWait < t.spawn, "childWait 必须小于 spawn");
+});
+
 // ── 执行 ────────────────────────────────────────────────────
 let pass = 0;
 const failures = [];

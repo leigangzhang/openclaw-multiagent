@@ -25,6 +25,7 @@ import {
   readStepOutput,
   recordStep,
   computeCostUsd,
+  deriveTimeouts,
   saveStatus,
   stepCompleted,
   transition,
@@ -88,7 +89,8 @@ export async function runStep(taskId, roleName, opts = {}) {
     taskId,
     stepName: roleName,
     cwd: effectiveWorkdir ?? undefined,
-    timeoutSec: opts.timeoutSec ?? 900,
+    // 从任务墙钟推导，而非硬编码 —— 保证内层严格小于外层
+    timeoutSec: opts.timeoutSec ?? deriveTimeouts(readStatus(taskId).limits).step,
   });
 
   recordStep(taskId, roleName, {
@@ -133,7 +135,7 @@ export async function runGate(taskId, { gateCmd, cwd, timeoutSec = 900, repo } =
   // 没给 gateCmd 但有仓库 → 用 orchestrator.sh 的测试门控。
   // 这比"跳过门控"重要得多：跳过意味着结论没有经过任何验证。
   if (!gateCmd && repo && orchestratorAvailable()) {
-    const g = await runTestGate(taskId, { cwd, timeoutSec: 1800, repo });
+    const g = await runTestGate(taskId, { cwd, timeoutSec: deriveTimeouts(readStatus(taskId).limits).gate, repo });
     const verdict = {
       gate: {
         passed: g.exitCode === 0,
