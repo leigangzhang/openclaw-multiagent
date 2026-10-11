@@ -11,12 +11,14 @@
 SHELL := /bin/zsh
 NODE  ?= node
 
-.PHONY: check test eval audit reap smoke clean help
+.PHONY: check test eval audit reap reap-worktrees reload smoke clean help
 
 help:
 	@echo "make check  —— 全部检查（test + eval）"
 	@echo "make audit  —— 链路配置自检（需 OpenClaw 在跑）"
-	@echo "make reap   —— 列出僵尸会话（dry-run）"
+	@echo "make reap   —— 列出僵尸会话 + 孤儿工作树（dry-run）"
+	@echo "make reap-worktrees FORCE=1 —— 清孤儿工作树"
+	@echo "make reload —— 重启 runner（改代码后必须）"
 	@echo "make smoke  —— 桩传输跑一遍完整管线（不花 LLM）"
 
 # 提交前必过：不依赖外部服务
@@ -43,8 +45,20 @@ e2e-resume:
 
 e2e: e2e-resume
 
+# runner 是常驻进程，改代码后必须重启才生效（踩过两次）
+reload:
+	@echo "── 重启 runner（加载新代码）──"
+	@launchctl kickstart -k "gui/$$UID/ai.openclaw.multiagent-runner" 2>/dev/null || \
+	 launchctl bootstrap "gui/$$UID" "$$HOME/Library/LaunchAgents/ai.openclaw.multiagent-runner.plist"
+	@sleep 4
+	@pgrep -f runner.mjs >/dev/null && echo "✅ runner 已重启 (PID $$(pgrep -f runner.mjs | head -1))" || echo "❌ runner 未运行"
+
 reap:
 	@$(NODE) bin/reap.mjs
+
+# 清理孤儿工作树（dry-run；真删加 FORCE=1）
+reap-worktrees:
+	@$(NODE) bin/reap.mjs --worktrees $(if $(FORCE),--force,)
 
 smoke:
 	@echo "── 桩传输冒烟（不调用任何模型）──"

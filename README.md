@@ -160,12 +160,17 @@ cd ~/Workspace/openclaw-multiagent/taskctl && node bin/runner.mjs --once
 cd taskctl
 make check    # 提交前必过：单测 21 + 编排 eval 8，不依赖外部服务
 make audit    # 链路配置自检 27 项（需 OpenClaw 在跑）
-make reap     # 列出僵尸会话（dry-run）
+make reap              # 列出僵尸会话 + 孤儿工作树（dry-run）
+make reap-worktrees FORCE=1   # 清孤儿工作树
+make reload            # 重启 runner（**改代码后必须**）
 ```
 
 **eval 验的是编排逻辑，不是模型质量** —— 用桩传输注入，毫秒级、零成本、完全确定。
 它抓到过一个真实 bug：第二轮 `review` 被幂等跳过，于是**一直读到旧的失败结论**，
 陷入"修 → 跳过审查 → 又判失败"的死循环直到 maxFix 耗尽。
+
+**运维要点**：runner 是常驻进程，**改完代码必须 `make reload`** 才生效
+（我为此排查过两次"改了没反应"）。
 
 ---
 
